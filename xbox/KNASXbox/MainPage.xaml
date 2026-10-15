@@ -1,0 +1,46 @@
+<Page
+    x:Class="KNASXbox.MainPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Microsoft.UI.Xaml.Controls"
+    Background="Black">
+
+    <Grid>
+        <controls:WebView2 x:Name="Web" IsTabStop="False" Visibility="Collapsed" DefaultBackgroundColor="Black" />
+
+        <!-- keeps the controller away from the web page, so the app can turn buttons into remote keys -->
+        <ContentControl x:Name="Sink" IsTabStop="True" UseSystemFocusVisuals="False" Width="1" Height="1" Opacity="0"
+                        HorizontalAlignment="Left" VerticalAlignment="Top" />
+
+        <!-- first start, or "Change address" -->
+        <Grid x:Name="Setup" Visibility="Collapsed" Background="#0b1450">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Width="760" Spacing="18"
+                        Background="#D9050A32" Padding="48,36" CornerRadius="12" BorderBrush="#9cb8ff" BorderThickness="3">
+                <TextBlock Text="KNAS 42" FontSize="56" FontWeight="ExtraBold" FontStyle="Italic" Foreground="#ffd23a" HorizontalAlignment="Center" />
+                <TextBlock x:Name="SetupTitle" Text="Where's KNAS?" FontSize="30" FontWeight="Bold" HorizontalAlignment="Center" />
+                <TextBlock x:Name="SetupMsg" Text="Type your NAS's address, or let the app look for it." FontSize="20" TextWrapping="Wrap"
+                           Foreground="#dfe7ff" HorizontalAlignment="Center" TextAlignment="Center" />
+                <TextBox x:Name="AddressBox" PlaceholderText="192.168.1.50" FontSize="28" InputScope="Url" />
+                <StackPanel Orientation="Horizontal" Spacing="16" HorizontalAlignment="Center">
+                    <Button x:Name="ConnectBtn" Content="Connect" FontSize="22" Padding="28,10" Click="Connect_Click" />
+                    <Button x:Name="FindBtn" Content="Find KNAS automatically" FontSize="22" Padding="28,10" Click="Find_Click" />
+                </StackPanel>
+                <TextBlock Text="Controller: A = OK · B = back · LB/RB = channel · View = guide · Y = info · LT/RT = volume · Menu = settings"
+                           FontSize="16" Foreground="#9cb8ff" TextWrapping="Wrap" TextAlignment="Center" HorizontalAlignment="Center" />
+            </StackPanel>
+        </Grid>
+
+        <!-- Menu button -->
+        <Grid x:Name="Menu" Visibility="Collapsed" Background="#B3000000">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Width="560" Spacing="14"
+                        Background="#F2050A32" Padding="40,30" CornerRadius="12" BorderBrush="#9cb8ff" BorderThickness="3">
+                <TextBlock Text="KNAS 42" FontSize="40" FontWeight="ExtraBold" FontStyle="Italic" Foreground="#ffd23a" HorizontalAlignment="Center" />
+                <TextBlock x:Name="MenuWhere" FontSize="18" Foreground="#dfe7ff" HorizontalAlignment="Center" />
+                <Button x:Name="MenuBack" Content="Back to KNAS" FontSize="22" HorizontalAlignment="Stretch" Click="MenuBack_Click" />
+                <Button Content="Reload" FontSize="22" HorizontalAlignment="Stretch" Click="Reload_Click" />
+                <Button Content="Change address" FontSize="22" HorizontalAlignment="Stretch" Click="ChangeAddress_Click" />
+                <Button Content="Exit KNAS" FontSize="22" HorizontalAlignment="Stretch" Click="Exit_Click" />
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Page>

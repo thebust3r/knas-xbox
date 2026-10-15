@@ -1,0 +1,72 @@
+# Builds the KNAS 42 Xbox app (xbox/KNASXbox) on Windows and keeps it as a download on the run's page.
+# The package is signed with the test certificate in signing/xbox-test.pfx, which is fine for installing
+# on an Xbox in Developer Mode. (A Microsoft Store version is signed by Microsoft instead.)
+name: Xbox app
+
+on:
+  push:
+    paths: ["xbox/**", "signing/xbox-test.pfx", ".github/workflows/xbox-app.yml", "app/server.py"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Version
+        id: v
+        shell: pwsh
+        run: |
+          $v = "1.0.0"
+          if (Test-Path app/server.py) { $m = Select-String -Path app/server.py -Pattern '^VERSION = "([0-9.]+)"'; if ($m) { $v = $m.Matches[0].Groups[1].Value } }
+          if (Test-Path xbox/VERSION) { $v = (Get-Content xbox/VERSION -Raw).Trim() }
+          $parts = ($v.Split('.') + @('0','0','0'))[0..2]
+          $full = ($parts -join '.') + '.0'
+          (Get-Content xbox/KNASXbox/Package.appxmanifest -Raw) -replace 'Version="[0-9.]+" />', "Version=""$full"" />" | Set-Content xbox/KNASXbox/Package.appxmanifest -Encoding utf8
+          Select-String -Path xbox/KNASXbox/Package.appxmanifest -Pattern '<Identity'
+          "version=$v" >> $env:GITHUB_OUTPUT
+
+      - uses: microsoft/setup-msbuild@v2
+
+      - name: Build
+        shell: pwsh
+        run: |
+          $pfx = (Resolve-Path signing/xbox-test.pfx).Path
+          $thumb = (New-Object System.Security.Cryptography.X509Certificates.X509Certificate2($pfx, "knas42xbox")).Thumbprint
+          msbuild xbox/KNASXbox/KNASXbox.csproj /restore /m /v:minimal `
+            /p:Configuration=Release /p:Platform=x64 `
+            /p:AppxPackageDir="$env:GITHUB_WORKSPACE\out\" `
+            /p:PackageCertificateKeyFile="$pfx" /p:PackageCertificatePassword=knas42xbox /p:PackageCertificateThumbprint=$thumb
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Get-ChildItem -Recurse out | Select-Object FullName, Length | Format-Table -AutoSize
+
+      - name: Pack for the Xbox
+        shell: pwsh
+        run: |
+          $v = "${{ steps.v.outputs.version }}"
+          $pkg = Get-ChildItem -Recurse out -Include *.msix, *.appx | Where-Object { $_.FullName -notmatch '\\Dependencies\\' } | Select-Object -First 1
+          if (-not $pkg) { throw "no package was made" }
+          New-Item -ItemType Directory -Force dist/KNAS-42-Xbox | Out-Null
+          Copy-Item $pkg.FullName "dist/KNAS-42-Xbox/KNAS-42-Xbox-$v$($pkg.Extension)"
+          $deps = Join-Path $pkg.DirectoryName "Dependencies\x64"
+          if (Test-Path $deps) { New-Item -ItemType Directory -Force dist/KNAS-42-Xbox/Dependencies | Out-Null; Copy-Item "$deps\*" dist/KNAS-42-Xbox/Dependencies/ }
+          Get-ChildItem -Recurse dist | Select-Object FullName, Length | Format-Table -AutoSize
+          Compress-Archive -Path dist/KNAS-42-Xbox/* -DestinationPath "dist/KNAS-42-Xbox-$v.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KNAS-42-Xbox
+          path: dist/*.zip
+
+      - name: Publish a test release (test repo only)
+        if: github.event.repository.name == 'knas-xbox'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $tag = "test-${{ github.run_number }}"
+          gh release create $tag (Get-ChildItem dist/*.zip).FullName --repo $env:GITHUB_REPOSITORY --title "Xbox test build ${{ github.run_number }}" --notes "Test build. Install it on an Xbox in Developer Mode (see the README)." --latest
