@@ -35,13 +35,22 @@ jobs:
       - name: Build
         shell: pwsh
         run: |
-          $pfx = (Resolve-Path signing/xbox-test.pfx).Path
-          $thumb = (New-Object System.Security.Cryptography.X509Certificates.X509Certificate2($pfx, "knas42xbox")).Thumbprint
-          msbuild xbox/KNASXbox/KNASXbox.csproj /restore /m /v:minimal `
+          $ErrorActionPreference = "Continue"
+          try {
+            $pfx = (Resolve-Path signing/xbox-test.pfx).Path
+            $thumb = (New-Object System.Security.Cryptography.X509Certificates.X509Certificate2($pfx, "knas42xbox")).Thumbprint
+          } catch { Write-Output "::error::certificate: $($_.Exception.Message)"; exit 1 }
+          msbuild xbox/KNASXbox/KNASXbox.csproj /restore /m /v:minimal /nologo `
             /p:Configuration=Release /p:Platform=x64 `
             /p:AppxPackageDir="$env:GITHUB_WORKSPACE\out\" `
-            /p:PackageCertificateKeyFile="$pfx" /p:PackageCertificatePassword=knas42xbox /p:PackageCertificateThumbprint=$thumb
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            /p:PackageCertificateKeyFile="$pfx" /p:PackageCertificatePassword=knas42xbox /p:PackageCertificateThumbprint=$thumb 2>&1 | Tee-Object -FilePath build.log
+          $code = $LASTEXITCODE
+          # show the errors as notes on the run (readable without the full log)
+          Select-String -Path build.log -Pattern ' error |error [A-Z]+[0-9]+' | Select-Object -First 25 | ForEach-Object {
+            $l = $_.Line -replace [regex]::Escape($env:GITHUB_WORKSPACE), ''
+            Write-Output "::error::$($l.Substring(0, [Math]::Min(900, $l.Length)))"
+          }
+          if ($code -ne 0) { Write-Output "::error::msbuild exit code $code"; exit $code }
           Get-ChildItem -Recurse out | Select-Object FullName, Length | Format-Table -AutoSize
 
       - name: Pack for the Xbox
