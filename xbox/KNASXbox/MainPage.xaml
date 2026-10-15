@@ -6,7 +6,7 @@
     Background="Black">
 
     <Grid>
-        <controls:WebView2 x:Name="Web" IsTabStop="False" Visibility="Collapsed" DefaultBackgroundColor="Black" />
+        <controls:WebView2 x:Name="Web" IsTabStop="False" Visibility="Collapsed" />
 
         <!-- keeps the controller away from the web page, so the app can turn buttons into remote keys -->
         <ContentControl x:Name="Sink" IsTabStop="True" UseSystemFocusVisuals="False" Width="1" Height="1" Opacity="0"
